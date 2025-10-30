@@ -1,7 +1,8 @@
 const db = require("../config/database")
 
-const Usuario = db.sequelize.define("Usuario", {
-  id: {
+const Medico = db.sequelize.define("Medico", {
+
+  id_medico: {
     type: db.Sequelize.INTEGER,
     autoIncrement: true,
     primaryKey: true
@@ -17,15 +18,21 @@ const Usuario = db.sequelize.define("Usuario", {
   senha: {
     type: db.Sequelize.STRING,
     allowNull: false
-  },
-  cargo: {
-    type: db.Sequelize.ENUM("admin", "medico", "recepcao"),
+  }, 
+  crm: {
+    type: db.Sequelize.STRING,
     allowNull: false
   },
-  ativo: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: true
+  telefone: {
+    type: db.Sequelize.STRING,
+    allowNull: false
+  },
+  especialidade: {
+    type: db.Sequelize.STRING,
+    allowNull: false
   }
-});
 
-module.exports = Usuario;
+})
+
+Medico.sync({force:true})
+module.exports = Medico
