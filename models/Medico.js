@@ -23,6 +23,10 @@ const Medico = db.sequelize.define("Medico", {
     type: db.Sequelize.STRING,
     allowNull: false
   },
+  tipo: {
+    type: db.Sequelize.STRING,
+    defaultValue: 'medico'
+  },
   telefone: {
     type: db.Sequelize.STRING,
     allowNull: false
@@ -30,9 +34,13 @@ const Medico = db.sequelize.define("Medico", {
   especialidade: {
     type: db.Sequelize.STRING,
     allowNull: false
+  },
+  ativo: {
+    type: db.Sequelize.BOOLEAN,
+    defaultValue: true
   }
 
 })
 
-Medico.sync({force:true})
+Medico.sync({force:false})
 module.exports = Medico

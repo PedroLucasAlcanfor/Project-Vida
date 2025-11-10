@@ -22,8 +22,12 @@ const Usuarios = db.sequelize.define("Usuarios", {
     type: db.Sequelize.STRING,
     allowNull: false
   },
-  cargo: {
-    type: db.Sequelize.ENUM("admin", "medico", "recepcao"),
+  telefone: {
+    type: db.Sequelize.STRING,
+    allowNull: false
+  },
+  tipo: {
+    type: db.Sequelize.ENUM("admin", "recepcao"),
     allowNull: false
   },
   ativo: {

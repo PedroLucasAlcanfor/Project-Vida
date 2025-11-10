@@ -26,6 +26,14 @@ const Paciente = db.sequelize.define("Pacientes", {
   telefone: {
     type: db.Sequelize.STRING,
     allowNull: false
+  },
+  tipo: {
+    type: db.Sequelize.STRING,
+    defaultValue: "paciente"
+  },
+  ativo: {
+    type: db.Sequelize.BOOLEAN,
+    defaultValue: true
   }
 })
 
