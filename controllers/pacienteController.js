@@ -1,6 +1,7 @@
 const Pacientes = require("../models/Pacientes");
 const Usuarios = require("../models/Usuarios");
 const Medicos = require("../models/Medico")
+const bcrypt = require("bcrypt");
 const Joi = require("joi");
 const db = require("../config/database");
 
@@ -39,7 +40,8 @@ const criarPacienteSchema = Joi.object({
     .messages({
       "string.pattern.base": "O número deve conter 11 dígitos",
       "any.required": "O número é obrigatório"
-    })
+    }),
+    
 });
 
 const atualizarPacienteSchema = Joi.object({
@@ -60,6 +62,7 @@ module.exports = {
   //Paciente se cadastra
   async cadastrarPaciente(req, res) {
     try {
+    console.log("Dados recebidos: ", req.body)
       const { error, value } = criarPacienteSchema.validate(req.body, { abortEarly: false });
       if (error) {
         const mensagens = error.details.map(d => d.message);
@@ -75,12 +78,19 @@ module.exports = {
     const cpfExistente = await Pacientes.findOne({ where: { cpf: value.cpf } });
     if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
 
-    const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } });
+    const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } }) || await Medicos.findOne({ where: { telefone: value.telefone } }) ||  await Usuarios.findOne({ where: { telefone: value.telefone } }) 
     if (telefoneExistente) return res.status(409).json({ msg: "Telefone já cadastrado." });
 
-    const paciente = await Pacientes.create(value);
+    const senhaHash = await bcrypt.hash(value.senha, 10);
+
+    const paciente = await Pacientes.create({
+      ...value,
+      senha:senhaHash
+    });
+
     res.status(201).json({ msg: "Paciente criado com sucesso!", paciente });
-    } catch (erro) {
+console.log("Paciente salvo:", paciente);    
+} catch (erro) {
       console.error(erro);
       res.status(500).json({ msg: "Erro ao criar paciente." });
     }
@@ -103,7 +113,7 @@ module.exports = {
     const cpfExistente = await Pacientes.findOne({ where: { cpf: value.cpf } });
     if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
 
-    const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } }) || await Medicos.findOne({ where: { telefone: value.telefone } });
+    const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } }) || await Medicos.findOne({ where: { telefone: value.telefone } }) ||  await Usuarios.findOne({ where: { telefone: value.telefone } }) 
     if (telefoneExistente) return res.status(409).json({ msg: "Telefone já cadastrado." });
 
     const senhaHash = await bcrypt.hash(value.senha, 10);

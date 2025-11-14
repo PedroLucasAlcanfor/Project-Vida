@@ -1,10 +1,15 @@
 const express = require("express")
 const consultaControllers = require("../controllers/consultaControllers")
+const auth = require("../middlewares/auth")
 const router = express.Router()
 
-router.patch("/marcar", consultaControllers.agendarConsulta) //recep marca consulta para paciente
+router.patch("/agendar/:id_consulta", consultaControllers.agendarConsulta) //recep marca consulta para paciente
 router.post("/disponibilizar", consultaControllers.disponibilizarConsulta) //adm disponibiliza 
 router.get("/listar", consultaControllers.listarConsultas) //retorna todas as consultas
-router.patch("/agendar/:id_consulta", consultaControllers.marcarConsultaPaciente) //paciente marca consulta disponível
+router.patch("/marcar/:id_consulta", auth, consultaControllers.marcarConsultaPaciente) //paciente marca consulta disponível
+router.patch("/desmarcar/:id_consulta", auth, consultaControllers.desmarcarConsultaPaciente) //desmarcar consulta 
+router.patch("/desmarcarRA/:id_consulta", auth, consultaControllers.desmarcarConsultaAdmin) //desmarcar consulta 
+router.post("/emergencia/marcar", auth, consultaControllers.criarEmergencia) //recepcionista ou adm marca consulta
+router.get("/diarias/listar", consultaControllers.listarConsultasDiarias) //Lista todas as consultas diárias (para o dashboard)
 
 module.exports = router
