@@ -1,3 +1,5 @@
+//adicionar auth depois
+
 const express = require("express")
 const pacienteControllers = require("../controllers/pacienteController")
 const router = express.Router()

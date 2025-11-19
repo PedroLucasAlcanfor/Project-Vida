@@ -8,39 +8,45 @@ const { Op } = require("sequelize");
 
 // Validação
 const criarUsuarioSchema = Joi.object({
-  nome: Joi.string().trim().min(5).max(100).pattern(/^[A-Za-zÀ-ÿ\s]+$/).required()
+    nome: Joi.string().trim().min(5).max(100).pattern(/^[A-Za-zÀ-ÿ\s]+$/).required()
     .messages({
       "string.empty": "O nome não pode ser vazio",
       "string.pattern.base": "O nome não deve possuir números ou caracteres especiais",
       "string.min": "O nome deve ter pelo menos 5 caracteres",
       "string.max": "O nome deve ter no máximo 100 caracteres",
     }),
-  genero: Joi.string().trim().valid('masculino', 'feminino', 'outro').required()
+     genero: Joi.string().trim().valid('masculino', 'feminino', 'outro').required()
     .messages({ 
       "string.empty": "O gênero não pode ser vazio",
       "any.required": "O gênero é obrigatório",
       'any.only': 'Gênero deve ser masculino, feminino ou outro.'
     }),
-  email: Joi.string().trim().pattern(/^[a-zA-Z0-9._%+-]{1,64}@gmail\.com$/).required()
+    email: Joi.string().trim().pattern(/^[a-zA-Z0-9._%+-]{1,64}@gmail\.com$/).required()
     .messages({
       "string.pattern.base": "Digite um e-mail válido",
       "any.required": "O e-mail é obrigatório",
     }),
-  senha: Joi.string().trim().length(6).required()
+    cpf: Joi.string().trim().pattern(/^\d{11}$/).required()
+    .messages({
+      "string.pattern.base": "O CPF deve conter 11 dígitos.",
+      "any.required": "O CPF é obrigatório"
+    }),
+
+    senha: Joi.string().trim().length(6).required()
     .messages({
     "string.length": "A senha deve ter no mínimo 6 caracteres",
     "string.empty": "A senha não pode ser vazia",
     }),
-  tipo: Joi.string().trim().required().valid('admin', 'recepcionista')
+    tipo: Joi.string().trim().required().valid('admin', 'recepcionista')
     .messages({ 
     "string.empty": "O tipo não pode ser vazio",
     "any.required": "O tipo é obrigatório",
     'any.only': 'O tipo deve ser admin ou recepcionista.'
     }),
-  credencial: Joi.string().pattern(/^[0-9]{4}$/).required()
+    credencial: Joi.string().pattern(/^[0-9]{4}$/).required()
     .messages({ 
     "string.pattern.base": "Credencial inválida. Deve ter 4 dígitos." }),
-  telefone: Joi.string().trim().required().pattern(/^\d{11}$/)
+    telefone: Joi.string().trim().required().pattern(/^\d{11}$/)
     .messages({
     "string.pattern.base": "O telefone deve conter 11 dígitos",
     "any.required": "O telefone é obrigatório"
@@ -58,14 +64,17 @@ const atualizarUsuarioSchema = Joi.object({
   genero: Joi.string().trim()
   .messages({ 
     "string.empty": "O gênero não pode ser vazio",
-    "any.required": "O gênero é obrigatório",
     'any.only': 'Gênero deve ser masculino, feminino ou outro.'
   }),
   email: Joi.string().trim().pattern(/^[a-zA-Z0-9._%+-]{1,64}@gmail\.com$/)
    .messages({
-    "string.pattern.base": "Digite um e-mail válido",
-    "any.required": "O e-mail é obrigatório",
+    "string.pattern.base": "Digite um e-mail válido"
   }),
+  cpf: Joi.string().trim().pattern(/^\d{11}$/)
+  .messages({
+    "string.pattern.base": "O CPF deve conter 11 dígitos.",
+  }),
+
   senha: Joi.string().trim().min(6).max(100) 
   .messages({
     "string.length": "A senha deve ter no mínimo 6 caracteres",
@@ -77,7 +86,6 @@ const atualizarUsuarioSchema = Joi.object({
   tipo: Joi.string().trim()
     .messages({ 
     "string.empty": "O tipo não pode ser vazio",
-    "any.required": "O tipo é obrigatório",
     'any.only': 'O tipo deve ser admin ou recepcionista.'
   }),  
   telefone: Joi.string().trim().pattern(/^\d{11}$/)
@@ -110,8 +118,11 @@ module.exports = {
       }
     const emailExistente = await Pacientes.findOne({ where: { email: value.email } }) || await Usuarios.findOne({ where: { email: value.email } }) || await Medicos.findOne({ where: { email: value.email } });
     if (emailExistente) return res.status(409).json({ msg: "E-mail já cadastrado." });
+    
+    const cpfExistente = await Usuarios.findOne({ where: { cpf: value.cpf } }) 
+    if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
 
-    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) || await Usuarios.findOne({ where: { nome: value.nome } }) || await Medicos.findOne({ where: { nome: value.nome } });
+    const nomeExistente = await Usuarios.findOne({ where: { nome: value.nome } }) 
     if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
 
     const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } }) || await Medicos.findOne({ where: { telefone: value.telefone } });
@@ -146,8 +157,7 @@ module.exports = {
       if (value.nome) {
         const nomeExistente = await Usuarios.findOne({
           where: { nome: value.nome, id_usuario: { [db.Sequelize.Op.ne]: id } }
-        }) || await Medicos.findOne({ where: { nome: value.nome } }) 
-        ||  await Pacientes.findOne({ where: { nome: value.nome } }) 
+        }) 
 
         if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
       }
@@ -156,8 +166,15 @@ module.exports = {
         const emailExistente = await Usuarios.findOne({
           where: { email: value.email, id_usuario: { [db.Sequelize.Op.ne]: id } }
         }) || await Pacientes.findOne({ where: { email: value.email } }) 
-            ||  await Medicos.findOne({ where: { nome: value.nome } }) 
+          ||  await Medicos.findOne({ where: { nome: value.nome } }) 
         if (emailExistente) return res.status(409).json({ msg: "E-mail já existente." });
+      }
+      if (value.cpf) {
+        const cpfExistente = await Usuarios.findOne({
+          where: { cpf: value.cpf, id_usuario: { [db.Sequelize.Op.ne]: id } }
+        }) 
+
+        if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
       }
 
       if(value.senha){

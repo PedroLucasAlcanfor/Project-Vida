@@ -55,10 +55,11 @@ module.exports = {
         process.env.JWT_SECRET, 
         { expiresIn: "8h" } 
       );
-
       res.json({
         msg: "Login realizado com sucesso",
-        tipo,
+        id: usuario.id_usuario || usuario.id_paciente || usuario.id_medico,
+        nome: usuario.nome,
+        tipo, 
         token,
       });
     } catch (erro) {

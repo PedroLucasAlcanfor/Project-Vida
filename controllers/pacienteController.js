@@ -1,3 +1,5 @@
+//ADICIONAR O BCRYPT A CADA TIPO DE CRIAÇÃO DE USUARIO
+
 const Pacientes = require("../models/Pacientes");
 const Usuarios = require("../models/Usuarios");
 const Medicos = require("../models/Medico")
@@ -72,7 +74,7 @@ module.exports = {
     const emailExistente = await Pacientes.findOne({ where: { email: value.email } }) || await Usuarios.findOne({ where: { email: value.email } });
     if (emailExistente) return res.status(409).json({ msg: "E-mail já cadastrado." });
 
-    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) || await Usuarios.findOne({ where: { nome: value.nome } });
+    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) 
     if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
 
     const cpfExistente = await Pacientes.findOne({ where: { cpf: value.cpf } });
@@ -107,7 +109,7 @@ console.log("Paciente salvo:", paciente);
     const emailExistente = await Pacientes.findOne({ where: { email: value.email } }) || await Usuarios.findOne({ where: { email: value.email } }) || await Medicos.findOne({ where: { email: value.email } });
     if (emailExistente) return res.status(409).json({ msg: "E-mail já cadastrado." });
 
-    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) || await Usuarios.findOne({ where: { nome: value.nome } }) || await Medicos.findOne({ where: { nome: value.nome } });
+    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } })
     if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
 
     const cpfExistente = await Pacientes.findOne({ where: { cpf: value.cpf } });

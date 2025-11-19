@@ -15,6 +15,10 @@ const Medico = db.sequelize.define("Medico", {
     type: db.Sequelize.STRING,
     allowNull: false,
   },
+   cpf: {
+    type: db.Sequelize.STRING,
+    allowNull: false,
+  },
   senha: {
     type: db.Sequelize.STRING,
     allowNull: false
@@ -42,5 +46,4 @@ const Medico = db.sequelize.define("Medico", {
 
 })
 
-Medico.sync({force:false})
 module.exports = Medico

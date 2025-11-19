@@ -18,6 +18,10 @@ const Usuarios = db.sequelize.define("Usuarios", {
     type: db.Sequelize.STRING,
     allowNull: false,
   },
+  cpf: {
+    type: db.Sequelize.STRING,
+    allowNull: false,
+  },
   senha: {
     type: db.Sequelize.STRING,
     allowNull: false
@@ -41,5 +45,4 @@ const Usuarios = db.sequelize.define("Usuarios", {
 
 });
 
-Usuarios.sync({force:false})
 module.exports = Usuarios

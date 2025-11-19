@@ -37,5 +37,4 @@ const Paciente = db.sequelize.define("Pacientes", {
   }
 })
 
-Paciente.sync({force:false})
 module.exports = Paciente

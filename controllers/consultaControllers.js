@@ -1,3 +1,10 @@
+//Adicionar req usuario nas funções que falta: 
+//listarConsultas
+//listarConsultasDiarias
+//agendarConsulta
+//disponibilizarConsulta
+
+
 const Medicos = require("../models/Medico");
 const Joi = require("joi");
 const db = require("../config/database");
@@ -7,7 +14,7 @@ const Consultas = require("../models/Consultas");
 
 
 const agendarConsultaSchema = Joi.object({
-
+  
     cpf: Joi.string().pattern(/^\d{11}$/).required()
     .messages({
     "string.pattern.base": "O CPF deve conter exatamente 11 dígitos numéricos.",
@@ -27,11 +34,11 @@ const disponibilizarConsultaSchema = Joi.object({
     "any.required": "O campo nomeDoutor é obrigatório."
     }),
 
-   especialidadeConsulta: Joi.string().trim().valid('Cardiologista', 'Neurologista', 'Ortopedista', 'Emergencista', 'Psicólogo', 'Pneumologista', 'Urologista', 'Ginecologista').required()
+   especialidadeConsulta: Joi.string().trim().valid('Cardiologista', 'Neurologista', 'Ortopedista', 'Psicólogo', 'Pneumologista', 'Urologista', 'Ginecologista').required()
     .messages({
       "string.empty": "A especialidade não pode ser vazia",
       "any.required": "A especialidade é obrigatória",
-      "any.only": "Especialidade deve ser Cardiologista, Neurologista, Ortopedista, Emergencista, Psicólogo, Pneumologista, Urologista, Ginecologista"
+      "any.only": "Especialidade deve ser Cardiologista, Neurologista, Ortopedista, Psicólogo, Pneumologista, Urologista, Ginecologista"
     }),
 
     data: Joi.date().iso().required().messages({
@@ -102,10 +109,23 @@ const criarEmergenciaSchema = Joi.object({
 });
 
 
-
 module.exports = {
+   async relatorioConsultas(req, res) {
+        const consultas = await Consultas.findAll({where: {status:"Finalizada"},
+          include: [
+            {
+              model: Pacientes,
+              as: "paciente",    
+              required: false,   
+            }
+          ]
+        })
+        res.json({
+            total: consultas.length,
+            consultas
+        });
+    },
 
-  // ADM acessa todas as consultas disponíveis no sistema
   async listarConsultas(req, res) {
     try {
       const consultas = await Consultas.findAll();
@@ -115,7 +135,6 @@ module.exports = {
         return { ...c.toJSON(), data: dataBr };
       });
     
-
       res.json(consultasFormatadas);
     } catch (erro) {
       console.error("Erro ao listar consultas:", erro);
@@ -242,7 +261,7 @@ async marcarConsultaPaciente(req, res) {
   }
 },
 
-  // ADM disponibiliza uma nova consulta
+  // ADM disponibiliza  // ADM disponibiliza uma nova consulta
   async disponibilizarConsulta(req, res) {
     try {
       const { error, value } = disponibilizarConsultaSchema.validate(req.body, { abortEarly: false });
@@ -255,6 +274,8 @@ async marcarConsultaPaciente(req, res) {
 
       const medico = await Medicos.findOne({ where: { nome: nomeDoutor } });
       if (!medico) return res.status(404).json({ msg: "Médico não encontrado." });
+
+      if(medico.especialidade !== value.especialidadeConsulta) return res.status(409).json({msg: "A especialidade do médico é diferente"})
 
       const consultaExistente = await Consultas.findOne({ where: { nomeDoutor, data, horario } });
       if (consultaExistente)
@@ -339,58 +360,37 @@ async marcarConsultaPaciente(req, res) {
   }
 },
 
-
-// Paciente desmarcar suas consultas
-  async desmarcarConsultaPaciente(req, res) {
+async desmarcarConsulta(req, res) {
   try {
     const { id_consulta } = req.params;
     const usuario = req.usuario;
 
-    if (usuario.tipo !== "paciente") {
-      return res.status(403).json({ msg: "Apenas pacientes podem usar esta rota." });
-    }
-
     const consulta = await Consultas.findByPk(id_consulta);
     if (!consulta) return res.status(404).json({ msg: "Consulta não encontrada." });
 
-    if (consulta.id_paciente !== usuario.id) {
+    if (usuario.tipo === "paciente" && consulta.id_paciente !== usuario.id) {
       return res.status(403).json({ msg: "Você só pode desmarcar suas próprias consultas." });
     }
 
-    if (consulta.status === "Disponível") {
-      return res.status(409).json({ msg: "Consulta já está desmarcada." });
+    if (usuario.tipo !== "paciente" && usuario.tipo !== "admin" && usuario.tipo !== "recepcionista") {
+      return res.status(403).json({ msg: "Você não tem permissão para desmarcar consultas." });
     }
-
-    await consulta.update({ status: "Disponível", id_paciente: null });
-    res.json({ msg: "Consulta desmarcada com sucesso." });
-  } catch (erro) {
-    console.error("Erro ao desmarcar consulta do paciente:", erro);
-    res.status(500).json({ msg: "Erro ao desmarcar consulta." });
-  }
-},
-// ADM/Recep desmarca consultas de outros usuários
-async desmarcarConsultaAdmin(req, res) {
-  try {
-    const { id_consulta } = req.params;
-    const usuario = req.usuario;
-
-    if (usuario.tipo !== "admin" && usuario.tipo !== "recepcionista") {
-      return res.status(403).json({ msg: "Apenas administradores ou recepcionistas podem desmarcar consultas de outros." });
-    }
-
-    const consulta = await Consultas.findByPk(id_consulta);
-    if (!consulta) return res.status(404).json({ msg: "Consulta não encontrada." });
 
     if (consulta.status === "Disponível") {
       return res.status(409).json({ msg: "Consulta já está desmarcada." });
     }
+    if(consulta.especialidadeConsulta === "Emergencista" && usuario.tipo === "paciente") {
+      return res.status(401).json({ msg: "Não é possível desmarcar uma emergência"})
+    }
 
     await consulta.update({ status: "Disponível", id_paciente: null });
-    res.json({ msg: "Consulta desmarcada com sucesso pelo administrador/recepcionista." });
+
+    return res.json({ msg: "Consulta desmarcada com sucesso." });
+
   } catch (erro) {
-    console.error("Erro ao desmarcar consulta (admin):", erro);
+    console.error("Erro ao desmarcar consulta:", erro);
     res.status(500).json({ msg: "Erro ao desmarcar consulta." });
   }
 }
 
-};
+}

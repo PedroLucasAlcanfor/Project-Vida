@@ -27,6 +27,12 @@ const criarMedicoSchema = Joi.object({
         "string.pattern.base": "Digite um e-mail válido",
         "any.required": "O e-mail é obrigatório",
     }),
+    cpf: Joi.string().trim().pattern(/^\d{11}$/).required()
+    .messages({
+        "string.pattern.base": "O CPF deve conter 11 dígitos.",
+        "any.required": "O CPF é obrigatório"
+  }),
+
     senha: Joi.string().trim().length(6).required()
     .messages({
         "string.length": "A senha deve ter exatamente 6 caracteres",
@@ -50,47 +56,47 @@ const criarMedicoSchema = Joi.object({
       "any.required": "A especialidade é obrigatória",
       "any.only": "Especialidade deve ser Cardiologista, Neurologista, Ortopedista, Emergencista, Psicólogo, Pneumologista, Urologista, Ginecologista"
     })})
+
  const atualizarMedicoSchema = Joi.object({
-    nome: Joi.string().trim().min(5).max(100).pattern(/^[A-Za-zÀ-ÿ\s]+$/).required()
+    nome: Joi.string().trim().min(5).max(100).pattern(/^[A-Za-zÀ-ÿ\s]+$/)
     .messages({
         "string.empty": "O nome não pode ser vazio",
         "string.pattern.base": "O nome não deve possuir números ou caracteres especiais",
         "string.min": "O nome deve ter pelo menos 5 caracteres",
         "string.max": "O nome deve ter no máximo 100 caracteres",
-        "any.required": "O nome é obrigatório"
     }),
-    genero: Joi.string().trim().valid('M', 'F', 'X').required()
+    genero: Joi.string().trim().valid('M', 'F', 'X')
     .messages({ 
         "string.empty": "O gênero não pode ser vazio",
-        "any.required": "O gênero é obrigatório",
         "any.only": "Gênero deve ser masculino, feminino ou outro."
     }),
-    email: Joi.string().trim().pattern(/^[a-zA-Z0-9._%+-]{1,64}@gmail\.com$/).required()
+    email: Joi.string().trim().pattern(/^[a-zA-Z0-9._%+-]{1,64}@gmail\.com$/)
     .messages({
         "string.pattern.base": "Digite um e-mail válido",
-        "any.required": "O e-mail é obrigatório",
     }),
-    senha: Joi.string().trim().length(6).required()
+    cpf: Joi.string().trim().pattern(/^\d{11}$/)
+  .messages({
+    "string.pattern.base": "O CPF deve conter 11 dígitos.",
+  }),
+
+    senha: Joi.string().trim().length(6)
     .messages({
         "string.length": "A senha deve ter exatamente 6 caracteres",
         "string.empty": "A senha não pode ser vazia",
-        "any.required": "A senha é obrigatória"
     }),
-    crm: Joi.string().trim().pattern(/^\d{1,6}-[A-Z]{2}$/).required()
+    crm: Joi.string().trim().pattern(/^\d{1,6}-[A-Z]{2}$/)
     .messages({
         "string.pattern.base" : "Digite um crm válido",
         "string.empty":"O CRM não pode ser vazio",
-        "any.required": "O CRM é obrigatório"
     }),
     telefone: Joi.string().trim().required().pattern(/^\d{11}$/).optional()
     .messages({
       "string.pattern.base": "O número deve conter 11 dígitos",
       "any.required": "O número é obrigatório"
     }),
-    especialidade: Joi.string().trim().valid('Cardiologista, Neurologista, Ortopedista, Oftamologista, Psicólogo, Pneumologista, Urologista, Ginecologista').required()
+    especialidade: Joi.string().trim().valid('Cardiologista, Neurologista, Ortopedista, Oftamologista, Psicólogo, Pneumologista, Urologista, Ginecologista')
     .messages({
       "string.empty": "A especialidade não pode ser vazia",
-      "any.required": "A especialidade é obrigatória",
       "any.only": "Especialidade deve ser Cardiologista, Neurologista, Ortopedista, Oftamologista, Psicólogo, Pneumologista, Urologista, Ginecologista"
   })
 }).min(1)
@@ -111,7 +117,7 @@ module.exports = {
     const emailExistente = await Pacientes.findOne({ where: { email: value.email } }) || await Usuarios.findOne({ where: { email: value.email } }) || await Medicos.findOne({ where: { email: value.email } });
     if (emailExistente) return res.status(409).json({ msg: "E-mail já cadastrado." });
 
-    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) || await Usuarios.findOne({ where: { nome: value.nome } }) || await Medicos.findOne({ where: { nome: value.nome } });
+    const nomeExistente = await Pacientes.findOne({ where: { nome: value.nome } }) 
     if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
 
     const telefoneExistente = await Pacientes.findOne({ where: { telefone: value.telefone } }) || await Usuarios.findOne({ where: { telefone: value.telefone } }) || await Medicos.findOne({ where: { telefone: value.telefone } });
@@ -119,6 +125,9 @@ module.exports = {
 
     const crmExistente = await Medicos.findOne({where: {crm: value.crm}})
     if(crmExistente) return res.status(409).json({mgs:"Crm já cadastrada"})
+
+    const cpfExistente = await Medicos.findOne({ where: { cpf: value.cpf } });
+    if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
 
     const senhaHash = await bcrypt.hash(value.senha, 10)
 
@@ -146,8 +155,7 @@ module.exports = {
             if (value.nome) {
                 const nomeExistente = await Medicos.findOne({
                 where: { nome: value.nome, id_medico: { [db.Sequelize.Op.ne]: id } }
-                }) || await Usuarios.findOne({ where: { nome: value.nome } }) 
-                ||  await Pacientes.findOne({ where: { nome: value.nome } }) 
+                })
 
                 if (nomeExistente) return res.status(409).json({ msg: "Nome já existente." });
             }
@@ -156,13 +164,13 @@ module.exports = {
                 const emailExistente = await Medicos.findOne({
                 where: { email: value.email, id_medico: { [db.Sequelize.Op.ne]: id } }
                 }) || await Pacientes.findOne({ where: { email: value.email } }) 
-                    ||  await Usuarios.findOne({ where: { nome: value.nome } }) 
+                    ||  await Usuarios.findOne({ where: { email: value.nome } }) 
                 if (emailExistente) return res.status(409).json({ msg: "E-mail já existente." });
             }
 
             if(value.crm){
                 const crmExistente = await Medicos.findOne({
-                where: {credencial: value.crm, id_medico: {[db.Sequelize.Op.ne]: id}}
+                where: {crm: value.crm, id_medico: {[db.Sequelize.Op.ne]: id}}
                 })
                 if(crmExistente) return res.status(409).json({msg: "Credencial já existente"})
 
@@ -183,6 +191,18 @@ module.exports = {
                 }) 
                 if (telefoneExistente) return res.status(409).json({ msg: "Telefone já cadastrado." });
             }
+
+            if (value.cpf) {
+                const cpfExistente = 
+                    await Medicos.findOne({
+                        where: { cpf: value.cpf, id_medico: { [db.Sequelize.Op.ne]: id } }
+                    }) ||
+                    await Pacientes.findOne({ where: { cpf: value.cpf } }) ||
+                    await Usuarios.findOne({ where: { cpf: value.cpf } });
+
+                if (cpfExistente) return res.status(409).json({ msg: "CPF já cadastrado." });
+                }
+
 
             const [atualizados] = await Medicos.update(value, { where: { id_medico: id } });
             if (atualizados === 0) return res.status(404).json({ msg: "Usuário não encontrado." });

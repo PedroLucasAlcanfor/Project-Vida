@@ -41,9 +41,22 @@ const Consultas = db.sequelize.define("Consultas", {
 	data:{
 		type: db.Sequelize.DATE,
 		allowNull:false
+	},
+	diagnostico: {
+		type: db.Sequelize.TEXT,
+		allowNull: true
+	},
+	prescricoes: {
+		type: db.Sequelize.TEXT,
+		allowNull: true
 	}
+	
 
 })
 
-Consultas.sync({force:false})	
+Pacientes.hasMany(Consultas, { foreignKey: "id_paciente", as: "consultas" });
+Consultas.belongsTo(Pacientes, { foreignKey: "id_paciente", as: "paciente" });
+
+
+Consultas.sync({force:true})	
 module.exports = Consultas
