@@ -18,16 +18,19 @@ const atualizarProntuarioSchema = Joi.object({
     medicamentos_continuos: Joi.string().trim().allow("", null),
     observacoes_gerais: Joi.string().trim().allow("", null), // texto normal
 });
+const buscarProntuarioSchema = Joi.object({
+    cpf: Joi.string().pattern(/^\d{11}$/).required()
+        .messages({
+            "string.pattern.base": "CPF inválido. Use apenas números (11 dígitos).",
+            "any.required": "O CPF é obrigatório."
+        })
+});
 
-// Converte apenas campos de lista (vírgula) para array real
 const toArray = (v) =>
     !v ? [] : v.split(",").map(i => i.trim()).filter(i => i.length > 0);
 
 module.exports = {
 
-    // ------------------------------------------
-    // LISTAR PRONTUÁRIO DO PACIENTE LOGADO
-    // ------------------------------------------
     async listarProntuarioInd(req, res) {
         try {
             const usuario = req.usuario;
@@ -63,6 +66,55 @@ module.exports = {
 
         } catch (erro) {
             console.error("Erro ao listar prontuários:", erro);
+            return res.status(500).json({ msg: "Erro interno no servidor." });
+        }
+    },
+    async procurarProntuario(req, res) {
+        try {
+            const usuario = req.usuario;
+
+            if (usuario.tipo !== "medico" && usuario.tipo !== "admin") {
+                return res.status(403).json({ msg: "Acesso negado." });
+            }
+
+            const { error, value } = buscarProntuarioSchema.validate(req.body, { abortEarly: false });
+
+            if (error) {
+                return res.status(400).json({
+                    erros: error.details.map(d => d.message)
+                });
+            }
+
+            const { cpf } = value;
+
+            const paciente = await Pacientes.findOne({
+                where: { cpf }
+            });
+
+            if (!paciente) {
+                return res.status(404).json({ msg: "Paciente não encontrado com esse CPF." });
+            }
+
+            const prontuario = await Prontuarios.findOne({
+              where: { id_paciente: paciente.id_paciente }
+            });
+
+            if (!prontuario) {
+                return res.status(404).json({ msg: "Este paciente ainda não possui prontuário." });
+            }
+
+            return res.json({
+                msg: "Prontuário encontrado!",
+                paciente: {
+                    id: paciente.id,
+                    nome: paciente.nome,
+                    cpf: paciente.cpf
+                },
+                prontuario
+            });
+
+        } catch (erro) {
+            console.error("Erro ao procurar prontuário:", erro);
             return res.status(500).json({ msg: "Erro interno no servidor." });
         }
     },

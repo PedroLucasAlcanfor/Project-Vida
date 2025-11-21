@@ -51,7 +51,6 @@ const Consultas = db.sequelize.define("Consultas", {
 		allowNull: true
 	}
 	
-
 })
 
 Pacientes.hasMany(Consultas, { foreignKey: "id_paciente", as: "consultas" });

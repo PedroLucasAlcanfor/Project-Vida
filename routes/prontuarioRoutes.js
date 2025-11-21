@@ -7,6 +7,6 @@ router.post("/criar/",auth, prontuarioControllers.criarProntuario) //Cria um pro
 router.get("/listar",auth, prontuarioControllers.listarProntuarios) //Lista todos prontuários
 router.get("/listar/meu", auth, prontuarioControllers.listarProntuarioInd) // retorna só o do paciente
 router.patch("/atualizar/:id", auth, prontuarioControllers.atualizarProntuario)
-
+router.get("/procurar", auth, prontuarioControllers.procurarProntuario)
 
 module.exports = router
