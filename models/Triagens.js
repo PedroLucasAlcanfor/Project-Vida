@@ -52,4 +52,6 @@ Consultas.hasOne(Triagens, { foreignKey: "id_consulta" });
 Triagens.belongsTo(Medicos, { foreignKey: "id_medico_responsavel" });
 Medicos.hasMany(Triagens, { foreignKey: "id_medico_responsavel" });
 
+Triagens.sync({force:false})
+
 module.exports = Triagens;

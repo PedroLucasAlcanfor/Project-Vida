@@ -53,7 +53,7 @@ module.exports = {
           tipo, 
         },
         process.env.JWT_SECRET, 
-        { expiresIn: "8h" } 
+        { expiresIn: "300h" } 
       );
       res.json({
         msg: "Login realizado com sucesso",

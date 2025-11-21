@@ -85,6 +85,11 @@ module.exports = {
     //ADM lista todas as triagens 
     async listarTriagens(req, res) {
     try {
+      const usuario = req.usuario
+      if (!usuario || usuario.tipo !== "admin") {
+       return res.status(401).json({ msg: "Somente admins podem acessar essa rota" });
+      }
+
       const triagem = await Triagens.findAll();
 
       res.json(triagem);
@@ -101,6 +106,10 @@ module.exports = {
       if (error) {
         const mensagens = error.details.map(d => d.message);
         return res.status(400).json({ erros: mensagens });
+      }
+      const usuarios = req.usuario
+      if (!usuarios || usuarios.tipo !== "medico") {
+       return res.status(401).json({ msg: "Somente medicos podem acessar essa rota" });
       }
 
       const { id_consulta } = req.params;

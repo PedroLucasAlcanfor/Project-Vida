@@ -1,10 +1,9 @@
 //Adicionar req usuario nas funções que falta: 
-//listarConsultas
 //listarConsultasDiarias
 //agendarConsulta
 //disponibilizarConsulta
 
-
+const {Op} = require("sequelize")
 const Medicos = require("../models/Medico");
 const Joi = require("joi");
 const db = require("../config/database");
@@ -106,25 +105,60 @@ const criarEmergenciaSchema = Joi.object({
       "string.pattern.base": "O horário deve estar no formato HH:MM (ex: 14:30)."
     }),
   status: Joi.string().valid("Agendada")
+})
+
+const finalizarConsultaSchema = Joi.object({
+  diagnostico: Joi.string().trim().min(5).required().messages({
+    "any.required": "O diagnóstico é obrigatório.",
+    "string.min": "O diagnóstico deve ter pelo menos 5 caracteres."
+  }),
+  
+  prescricoes: Joi.string().trim().min(3).required().messages({
+    "any.required": "A prescrição é obrigatória.",
+    "string.min": "A prescrição deve ter pelo menos 3 caracteres."
+  }),
+
 });
 
 
+
 module.exports = {
-   async relatorioConsultas(req, res) {
-        const consultas = await Consultas.findAll({where: {status:"Finalizada"},
-          include: [
-            {
-              model: Pacientes,
-              as: "paciente",    
-              required: false,   
-            }
-          ]
-        })
-        res.json({
-            total: consultas.length,
-            consultas
-        });
-    },
+  async relatorioConsultas(req, res) {
+  try {
+    const usuario = req.usuario;
+
+    if (usuario.tipo === "paciente") {
+      return res.status(403).json({ msg: "Acesso negado" });
+    }
+
+    let where = { status: "Finalizada" };
+
+    if (usuario.tipo === "medico") {
+     where.nomeDoutor = { [Op.like]: usuario.nome }
+     }
+
+    const consultas = await Consultas.findAll({
+      where,
+      include: [
+        {
+          model: Pacientes,
+          as: "paciente",
+          required: false
+        }
+      ]
+    });
+
+    return res.json({
+      total: consultas.length,
+      consultas
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: "Erro ao gerar relatório" });
+  }
+},
+
 
   async listarConsultas(req, res) {
     try {
@@ -145,75 +179,87 @@ module.exports = {
 //Lista todas as consultas diárias (para o dashboard)
 async listarConsultasDiarias(req, res) {
   try {
+    const usuario = req.usuario;
+
+    if (!usuario || (usuario.tipo !== "admin" && usuario.tipo !== "recepcionista")) {
+      return res.status(403).json({ msg: "Somente administradores ou recepcionistas podem acessar esta rota." });
+    }
+
     const inicioDoDia = new Date();
-    inicioDoDia.setHours(0, 0, 0, 0); 
+    inicioDoDia.setHours(0, 0, 0, 0);
 
     const fimDoDia = new Date();
-    fimDoDia.setHours(23, 59, 59, 999); 
+    fimDoDia.setHours(23, 59, 59, 999);
 
     const consultas = await Consultas.findAll({
       where: {
-        data: {
-          [db.Sequelize.Op.between]: [inicioDoDia, fimDoDia]
-        }
+        data: { [db.Sequelize.Op.between]: [inicioDoDia, fimDoDia] }
       },
-  
       order: [["horario", "ASC"]]
     });
 
     if (consultas.length === 0)
       return res.status(404).json({ msg: "Nenhuma consulta marcada para hoje." });
 
-    res.status(200).json({
+    return res.status(200).json({
       msg: "Consultas do dia encontradas com sucesso!",
       total: consultas.length,
       consultas
     });
   } catch (erro) {
     console.error("Erro ao listar consultas diárias:", erro);
-    res.status(500).json({ msg: "Erro ao buscar consultas diárias." });
+    return res.status(500).json({ msg: "Erro ao buscar consultas diárias." });
   }
-}, 
+},
 
-  // Recepcionista agenda uma consulta
+
+  // Recepcionista ou adm agenda uma consulta
   async agendarConsulta(req, res) {
-    try {
+  try {
+    const usuario = req.usuario;
 
-      const {id_consulta} = req.params
-      const { error, value } = agendarConsultaSchema.validate(req.body, { abortEarly: false });
-      if (error) {
-        const mensagens = error.details.map(d => d.message);
-        return res.status(400).json({ erros: mensagens });
-      }
-
-      const {  cpf, prioridade } = value;
-
-      const consulta = await Consultas.findOne({ where: { id_consulta } });
-      if (!consulta) return res.status(404).json({ msg: "Consulta não encontrada." });
-
-      if (consulta.status !== "Disponível") {
-        return res.status(400).json({ msg: "Essa consulta já foi agendada ou finalizada." });
-      }
-
-      const paciente = await Pacientes.findOne({ where: { cpf } });
-      if (!paciente) return res.status(404).json({ msg: "Paciente não encontrado." });
-
-      consulta.status = "Agendada";
-      if (prioridade) consulta.prioridade = prioridade;
-      consulta.id_paciente = paciente.id_paciente;
-      await consulta.save();
-
-      const dataBr = new Date(consulta.data).toLocaleDateString("pt-BR");
-
-      res.json({
-        msg: "Consulta agendada com sucesso!",
-        consulta: { ...consulta.toJSON(), data: dataBr },
-      });
-    } catch (erro) {
-      console.error("Erro ao agendar consulta:", erro);
-      res.status(500).json({ msg: "Erro ao agendar consulta." });
+    if (!usuario || (usuario.tipo !== "admin" && usuario.tipo !== "recepcionista")) {
+      return res.status(403).json({ msg: "Somente administradores ou recepcionistas podem agendar consultas." });
     }
-  },
+
+    const { id_consulta } = req.params;
+
+    const { error, value } = agendarConsultaSchema.validate(req.body, {
+      abortEarly: false
+    });
+    if (error) {
+      const mensagens = error.details.map(d => d.message);
+      return res.status(400).json({ erros: mensagens });
+    }
+
+    const { cpf, prioridade } = value;
+
+    const consulta = await Consultas.findOne({ where: { id_consulta } });
+    if (!consulta) return res.status(404).json({ msg: "Consulta não encontrada." });
+
+    if (consulta.status !== "Disponível") {
+      return res.status(400).json({ msg: "Essa consulta já foi agendada ou finalizada." });
+    }
+
+    const paciente = await Pacientes.findOne({ where: { cpf } });
+    if (!paciente) return res.status(404).json({ msg: "Paciente não encontrado." });
+
+    consulta.status = "Agendada";
+    if (prioridade) consulta.prioridade = prioridade;
+    consulta.id_paciente = paciente.id_paciente;
+    await consulta.save();
+
+    const dataBr = new Date(consulta.data).toLocaleDateString("pt-BR");
+
+    return res.json({
+      msg: "Consulta agendada com sucesso!",
+      consulta: { ...consulta.toJSON(), data: dataBr }
+    });
+  } catch (erro) {
+    console.error("Erro ao agendar consulta:", erro);
+    return res.status(500).json({ msg: "Erro ao agendar consulta." });
+  }
+},
 
   //  Paciente marca uma consulta
 async marcarConsultaPaciente(req, res) {
@@ -263,44 +309,52 @@ async marcarConsultaPaciente(req, res) {
 
   // ADM disponibiliza  // ADM disponibiliza uma nova consulta
   async disponibilizarConsulta(req, res) {
-    try {
-      const { error, value } = disponibilizarConsultaSchema.validate(req.body, { abortEarly: false });
-      if (error) {
-        const mensagens = error.details.map(d => d.message);
-        return res.status(400).json({ erros: mensagens });
-      }
+  try {
+    const usuario = req.usuario;
 
-      const { nomeDoutor, especialidadeConsulta, data, horario } = value;
-
-      const medico = await Medicos.findOne({ where: { nome: nomeDoutor } });
-      if (!medico) return res.status(404).json({ msg: "Médico não encontrado." });
-
-      if(medico.especialidade !== value.especialidadeConsulta) return res.status(409).json({msg: "A especialidade do médico é diferente"})
-
-      const consultaExistente = await Consultas.findOne({ where: { nomeDoutor, data, horario } });
-      if (consultaExistente)
-        return res.status(400).json({ msg: "Esse horário já está ocupado para esse médico." });
-
-      const novaConsulta = await Consultas.create({
-        nomeDoutor,
-        especialidadeConsulta,
-        data,
-        horario,
-        status: "Disponível",
-        prioridade: "N/D",
-      });
-
-      const dataFormatada = new Date(novaConsulta.data).toLocaleDateString("pt-BR");
-
-      res.status(201).json({
-        msg: "Consulta disponibilizada com sucesso!",
-        consulta: { ...novaConsulta.toJSON(), data: dataFormatada },
-      });
-    } catch (erro) {
-      console.error("Erro ao disponibilizar consulta:", erro);
-      res.status(500).json({ msg: "Erro ao disponibilizar consulta." });
+    if (!usuario || usuario.tipo !== "admin") {
+      return res.status(403).json({ msg: "Somente administradores podem disponibilizar consultas." });
     }
-  },
+
+    const { error, value } = disponibilizarConsultaSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      const mensagens = error.details.map(d => d.message);
+      return res.status(400).json({ erros: mensagens });
+    }
+
+    const { nomeDoutor, especialidadeConsulta, data, horario } = value;
+
+    const medico = await Medicos.findOne({ where: { nome: nomeDoutor } });
+    if (!medico) return res.status(404).json({ msg: "Médico não encontrado." });
+
+    if (medico.especialidade !== value.especialidadeConsulta)
+      return res.status(409).json({ msg: "A especialidade do médico é diferente da informada." });
+
+    const consultaExistente = await Consultas.findOne({ where: { nomeDoutor, data, horario } });
+    if (consultaExistente)
+      return res.status(400).json({ msg: "Esse horário já está ocupado para esse médico." });
+
+    const novaConsulta = await Consultas.create({
+      nomeDoutor,
+      especialidadeConsulta,
+      data,
+      horario,
+      status: "Disponível",
+      prioridade: "N/D",
+    });
+
+    const dataFormatada = new Date(novaConsulta.data).toLocaleDateString("pt-BR");
+
+    return res.status(201).json({
+      msg: "Consulta disponibilizada com sucesso!",
+      consulta: { ...novaConsulta.toJSON(), data: dataFormatada }
+    });
+  } catch (erro) {
+    console.error("Erro ao disponibilizar consulta:", erro);
+    return res.status(500).json({ msg: "Erro ao disponibilizar consulta." });
+  }
+},
+
   async criarEmergencia(req, res) {
   try {
     const usuario = req.usuario;
@@ -390,6 +444,54 @@ async desmarcarConsulta(req, res) {
   } catch (erro) {
     console.error("Erro ao desmarcar consulta:", erro);
     res.status(500).json({ msg: "Erro ao desmarcar consulta." });
+  }
+}, 
+async finalizarConsulta(req, res) {
+  try {
+    const usuario = req.usuario;
+
+    if (
+      usuario.tipo !== "medico" &&
+      usuario.tipo !== "admin" &&
+      usuario.tipo !== "recepcionista"
+    ) {
+      return res.status(403).json({
+        msg: "Você não tem permissão para finalizar consultas."
+      });
+    }
+
+    const { id_consulta } = req.params;
+
+    const { error, value } = finalizarConsultaSchema.validate(req.body, { abortEarly: false });
+    if (error) {
+      const mensagens = error.details.map((d) => d.message);
+      return res.status(400).json({ erros: mensagens });
+    }
+
+    const { diagnostico, prescricoes } = value;
+
+    const consulta = await Consultas.findByPk(id_consulta);
+
+    if (!consulta)
+      return res.status(404).json({ msg: "Consulta não encontrada." });
+
+    if (consulta.status !== "Agendada")
+      return res.status(409).json({ msg: "Somente consultas agendadas podem ser finalizadas." });
+
+    await consulta.update({
+      status: "Finalizada",
+      diagnostico,
+      prescricoes
+      });
+
+    return res.status(200).json({
+      msg: "Consulta finalizada com sucesso!",
+      consulta
+    });
+
+  } catch (erro) {
+    console.error("Erro ao finalizar consulta:", erro);
+    return res.status(500).json({ msg: "Erro ao finalizar a consulta." });
   }
 }
 

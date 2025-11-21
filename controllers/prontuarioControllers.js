@@ -1,49 +1,85 @@
 const Joi = require("joi");
 const Prontuarios = require("../models/Prontuarios");
 const Pacientes = require("../models/Pacientes");
-const Medicos = require("../models/Medico");
 
-const prontuarioSchema = Joi.object({
+const criarProntuarioSchema = Joi.object({
     cpf: Joi.string().pattern(/^\d{11}$/).required().messages({
         "any.required": "O CPF do paciente é obrigatório."
     }),
     alergias: Joi.string().trim().allow("", null),
     doencas_cronicas: Joi.string().trim().allow("", null),
     medicamentos_continuos: Joi.string().trim().allow("", null),
-    observacoes_gerais: Joi.string().trim().allow("", null),
+    observacoes_gerais: Joi.string().trim().allow("", null), // texto normal
 });
 
+const atualizarProntuarioSchema = Joi.object({
+    alergias: Joi.string().trim().allow("", null),
+    doencas_cronicas: Joi.string().trim().allow("", null),
+    medicamentos_continuos: Joi.string().trim().allow("", null),
+    observacoes_gerais: Joi.string().trim().allow("", null), // texto normal
+});
+
+// Converte apenas campos de lista (vírgula) para array real
 const toArray = (v) =>
     !v ? [] : v.split(",").map(i => i.trim()).filter(i => i.length > 0);
 
 module.exports = {
 
+    // ------------------------------------------
+    // LISTAR PRONTUÁRIO DO PACIENTE LOGADO
+    // ------------------------------------------
     async listarProntuarioInd(req, res) {
-        const usuario = req.usuario;
+        try {
+            const usuario = req.usuario;
 
-        if (usuario.tipo !== "paciente")
-            return res.status(403).json({ msg: "Acesso negado." });
+            if (usuario.tipo !== "paciente" && usuario.tipo !== "admin")
+                return res.status(403).json({ msg: "Acesso negado." });
 
-        const prontuario = await Prontuarios.findOne({ where: { id_paciente: usuario.id } });
+            const prontuario = await Prontuarios.findOne({
+                where: { id_paciente: usuario.id }
+            });
 
-        if (!prontuario)
-            return res.status(404).json({ msg: "Nenhum prontuário encontrado." });
+            if (!prontuario)
+                return res.status(404).json({ msg: "Nenhum prontuário encontrado." });
 
-        return res.json(prontuario);
+            return res.json(prontuario);
+
+        } catch (erro) {
+            console.error("Erro ao listar prontuário:", erro);
+            return res.status(500).json({ msg: "Erro interno no servidor." });
+        }
     },
 
+  
     async listarProntuarios(req, res) {
-        const prontuarios = await Prontuarios.findAll();
-        res.json(prontuarios);
+        try {
+            const usuario = req.usuario;
+
+            if (!usuario || usuario.tipo !== "admin")
+                return res.status(401).json({ msg: "Somente admins podem acessar essa rota." });
+
+            const prontuarios = await Prontuarios.findAll();
+            return res.json(prontuarios);
+
+        } catch (erro) {
+            console.error("Erro ao listar prontuários:", erro);
+            return res.status(500).json({ msg: "Erro interno no servidor." });
+        }
     },
 
+   
     async criarProntuario(req, res) {
         try {
-            const { error, value } = prontuarioSchema.validate(req.body);
+            const usuario = req.usuario;
 
-            if (error) return res.status(400).json({
-                erros: error.details.map(d => d.message)
-            });
+            if (usuario.tipo !== "medico" && usuario.tipo !== "admin")
+                return res.status(401).json({ msg: "Somente médicos e adms podem criar prontuários." });
+
+            const { error, value } = criarProntuarioSchema.validate(req.body, { abortEarly: false });
+
+            if (error) {
+                return res.status(400).json({ erros: error.details.map(d => d.message) });
+            }
 
             const paciente = await Pacientes.findOne({
                 where: { cpf: value.cpf }
@@ -53,18 +89,18 @@ module.exports = {
                 return res.status(404).json({ msg: "Paciente não encontrado pelo CPF informado." });
 
             const existente = await Prontuarios.findOne({
-                where: { id_paciente: paciente.id_paciente }
+                where: { id_paciente: paciente.id }
             });
 
             if (existente)
-                return res.status(409).json({ msg: "Paciente já possui prontuário." });
+                return res.status(409).json({ msg: "Este paciente já possui um prontuário." });
 
             const prontuario = await Prontuarios.create({
-                id_paciente: paciente.id_paciente,
+                id_paciente: paciente.id,
                 alergias: toArray(value.alergias),
                 doencas_cronicas: toArray(value.doencas_cronicas),
                 medicamentos_continuos: toArray(value.medicamentos_continuos),
-                observacoes_gerais: toArray(value.observacoes_gerais),
+                observacoes_gerais: value.observacoes_gerais || "", 
                 status: "ativo",
                 atualizado_por: null,
                 valores_antigos: []
@@ -80,77 +116,73 @@ module.exports = {
             return res.status(500).json({ msg: "Erro interno no servidor." });
         }
     },
-    async atualizarProntuario(req, res) {
-    try {
-        const usuario = req.usuario;  
-
-        if (usuario.tipo !== "medico" && usuario.tipo !== "admin")
-            return res.status(403).json({ msg: "Acesso negado." });
-
-        const { cpf } = req.body;
-
-        if (!cpf)
-            return res.status(400).json({ msg: "O CPF do paciente é obrigatório." });
-
-        const { error, value } = prontuarioSchema.validate(req.body);
-        if (error) {
-            return res.status(400).json({
-                erros: error.details.map(d => d.message)
-            });
-        }
-
-        const paciente = await Pacientes.findOne({
-            where: { cpf: value.cpf }
-        });
-
-        if (!paciente)
-            return res.status(404).json({ msg: "Paciente não encontrado pelo CPF informado." });
-
-        const prontuario = await Prontuarios.findOne({
-            where: { id_paciente: paciente.id_paciente }
-        });
-
-        if (!prontuario)
-            return res.status(404).json({ msg: "Prontuário não encontrado para este paciente." });
-
-        const valoresAntigos = {
-            alergias: prontuario.alergias,
-            doencas_cronicas: prontuario.doencas_cronicas,
-            medicamentos_continuos: prontuario.medicamentos_continuos,
-            observacoes_gerais: prontuario.observacoes_gerais
-            
-        };
-        const nadaMudou = 
-            toArray(value.alergias).toString() === prontuario.alergias.toString() &&
-            toArray(value.doencas_cronicas).toString() === prontuario.doencas_cronicas.toString() &&
-            toArray(value.medicamentos_continuos).toString() === prontuario.medicamentos_continuos.toString() &&
-            toArray(value.observacoes_gerais).toString() === prontuario.observacoes_gerais.toString();
-        
-        if (nadaMudou) {
-            return res.status(400).json({ msg: "Nenhuma alteração foi realizada." });
-        }
 
 
-        await prontuario.update({
-            alergias: toArray(value.alergias),
-            doencas_cronicas: toArray(value.doencas_cronicas),
-            medicamentos_continuos: toArray(value.medicamentos_continuos),
-            observacoes_gerais: toArray(value.observacoes_gerais),
-            atualizado_por: usuario.id,
-            valores_antigos: [...prontuario.valores_antigos, valoresAntigos]
+    
+async  atualizarProntuario(req, res) {
+  try {
+    const usuario = req.usuario;
+    const idProntuario = req.params.id;
 
-            
-        });
+    if (usuario.tipo !== "medico" && usuario.tipo !== "admin")
+      return res.status(403).json({ msg: "Acesso negado." });
 
-        return res.json({
-            msg: "Prontuário atualizado com sucesso!",
-            prontuario
-        });
+    const { error, value } = atualizarProntuarioSchema.validate(
+      req.body,
+      { abortEarly: false }
+    );
 
-    } catch (erro) {
-        console.error("Erro ao atualizar prontuário:", erro);
-        return res.status(500).json({ msg: "Erro interno no servidor." });
+    if (error) {
+      return res.status(400).json({ erros: error.details.map(d => d.message) });
     }
+
+    const prontuario = await Prontuarios.findByPk(idProntuario);
+
+    if (!prontuario)
+      return res.status(404).json({ msg: "Prontuário não encontrado." });
+
+    const antigo = {
+      alergias: prontuario.alergias || [],
+      doencas_cronicas: prontuario.doencas_cronicas || [],
+      medicamentos_continuos: prontuario.medicamentos_continuos || [],
+      observacoes_gerais: prontuario.observacoes_gerais || ""
+    };
+
+    const novo = {
+      alergias: toArray(value.alergias),
+      doencas_cronicas: toArray(value.doencas_cronicas),
+      medicamentos_continuos: toArray(value.medicamentos_continuos),
+      observacoes_gerais: value.observacoes_gerais || ""
+    };
+
+    const nadaMudou = JSON.stringify(antigo) === JSON.stringify(novo);
+
+    if (nadaMudou) {
+      return res.status(400).json({ msg: "Nenhuma alteração realizada." });
+    }
+
+    await prontuario.update({
+      ...novo,
+      atualizado_por: usuario.id,
+      valores_antigos: [
+        ...(prontuario.valores_antigos || []),
+        {
+          ...antigo,
+          alterado_por: usuario.nome,
+          data: new Date()
+        }
+      ]
+    });
+
+    return res.json({
+      msg: "Prontuário atualizado com sucesso!",
+      prontuario
+    });
+
+  } catch (erro) {
+    console.error("Erro ao atualizar prontuário:", erro);
+    return res.status(500).json({ msg: "Erro interno no servidor." });
+  }
 }
 
 }

@@ -58,5 +58,5 @@ Pacientes.hasMany(Consultas, { foreignKey: "id_paciente", as: "consultas" });
 Consultas.belongsTo(Pacientes, { foreignKey: "id_paciente", as: "paciente" });
 
 
-Consultas.sync({force:true})	
+Consultas.sync({force:false})	
 module.exports = Consultas
