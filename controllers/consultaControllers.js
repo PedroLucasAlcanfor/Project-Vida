@@ -1,14 +1,8 @@
-//Adicionar req usuario nas funções que falta: 
-//listarConsultasDiarias
-//agendarConsulta
-//disponibilizarConsulta
-
 const {Op} = require("sequelize")
 const Medicos = require("../models/Medico");
 const Joi = require("joi");
 const db = require("../config/database");
 const Pacientes = require("../models/Pacientes");
-const Usuarios = require("../models/Usuarios");
 const Consultas = require("../models/Consultas");
 
 
@@ -121,21 +115,21 @@ const finalizarConsultaSchema = Joi.object({
 });
 
 
-
 module.exports = {
-  async relatorioConsultas(req, res) {
+  
+async relatorioConsultas(req, res) {
   try {
     const usuario = req.usuario;
 
-    if (usuario.tipo === "paciente") {
+    if (usuario.tipo === "paciente" || usuario.tipo === "recepcao") {
       return res.status(403).json({ msg: "Acesso negado" });
     }
-
+    
     let where = { status: "Finalizada" };
 
     if (usuario.tipo === "medico") {
      where.nomeDoutor = { [Op.like]: usuario.nome }
-     }
+    }
 
     const consultas = await Consultas.findAll({
       where,
@@ -146,12 +140,12 @@ module.exports = {
           required: false
         }
       ]
-    });
+    })
 
     return res.json({
       total: consultas.length,
       consultas
-    });
+    })
 
   } catch (error) {
     console.error(error);
@@ -159,22 +153,37 @@ module.exports = {
   }
 },
 
+  //Lista todas as consultas existentes do paciente e do sistema(adm)
+async listarConsultas(req, res) {
+  try {
+    const usuario = req.usuario;
+    let consultas;
 
-  async listarConsultas(req, res) {
-    try {
-      const consultas = await Consultas.findAll();
-
-      const consultasFormatadas = consultas.map(c => {
-        const dataBr = new Date(c.data).toLocaleDateString("pt-BR");
-        return { ...c.toJSON(), data: dataBr };
-      });
-    
-      res.json(consultasFormatadas);
-    } catch (erro) {
-      console.error("Erro ao listar consultas:", erro);
-      res.status(500).json({ msg: "Erro ao listar consultas." });
+    if (usuario.tipo === "paciente") {
+      consultas = await Consultas.findAll({
+        where: { id_paciente: usuario.id }
+      })
+    } else {
+      consultas = await Consultas.findAll();
     }
-  },
+    if (!consultas || consultas.length === 0) {
+      return res.status(200).json({
+        msg: "Nenhuma consulta encontrada.",
+        consultas: []
+      });
+    }  
+    const consultasFormatadas = consultas.map(c => {
+      const dataBr = new Date(c.data).toLocaleDateString("pt-BR");
+      return { ...c.toJSON(), data: dataBr };
+    });
+
+    return res.json(consultasFormatadas);
+
+  } catch (erro) {
+    console.error("Erro ao listar consultas:", erro);
+    return res.status(500).json({ msg: "Erro ao listar consultas." });
+  }
+},
 
 //Lista todas as consultas diárias (para o dashboard)
 async listarConsultasDiarias(req, res) {
@@ -186,7 +195,7 @@ async listarConsultasDiarias(req, res) {
     }
 
     const inicioDoDia = new Date();
-    inicioDoDia.setHours(0, 0, 0, 0);
+    inicioDoDia.setHours(0, 0, 0, 0)
 
     const fimDoDia = new Date();
     fimDoDia.setHours(23, 59, 59, 999);
@@ -211,10 +220,9 @@ async listarConsultasDiarias(req, res) {
     return res.status(500).json({ msg: "Erro ao buscar consultas diárias." });
   }
 },
-
-
-  // Recepcionista ou adm agenda uma consulta
-  async agendarConsulta(req, res) {
+  
+//Recepcionista ou adm agenda uma consulta
+async agendarConsulta(req, res) {
   try {
     const usuario = req.usuario;
 
@@ -242,11 +250,11 @@ async listarConsultasDiarias(req, res) {
     }
 
     const paciente = await Pacientes.findOne({ where: { cpf } });
-    if (!paciente) return res.status(404).json({ msg: "Paciente não encontrado." });
+    if (!paciente) return res.status(404).json({ msg: "Paciente não encontrado." })
 
-    consulta.status = "Agendada";
-    if (prioridade) consulta.prioridade = prioridade;
-    consulta.id_paciente = paciente.id_paciente;
+    consulta.status = "Agendada"
+    if (prioridade) consulta.prioridade = prioridade
+    consulta.id_paciente = paciente.id_paciente
     await consulta.save();
 
     const dataBr = new Date(consulta.data).toLocaleDateString("pt-BR");
@@ -261,7 +269,7 @@ async listarConsultasDiarias(req, res) {
   }
 },
 
-  //  Paciente marca uma consulta
+//  Paciente marca uma consulta
 async marcarConsultaPaciente(req, res) {
   try {
     const { error } = marcarConsultaPacienteSchema.validate(req.params, { abortEarly: false });
@@ -307,7 +315,7 @@ async marcarConsultaPaciente(req, res) {
   }
 },
 
-  // ADM disponibiliza  // ADM disponibiliza uma nova consulta
+  // ADM disponibiliza uma nova consulta
   async disponibilizarConsulta(req, res) {
   try {
     const usuario = req.usuario;
@@ -413,7 +421,7 @@ async marcarConsultaPaciente(req, res) {
     res.status(500).json({ msg: "Erro ao criar consulta de emergência." });
   }
 },
-
+     
 async desmarcarConsulta(req, res) {
   try {
     const { id_consulta } = req.params;

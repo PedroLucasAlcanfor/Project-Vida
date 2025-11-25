@@ -1,10 +1,9 @@
-const Usuarios = require("../models/Usuarios");
-const Pacientes = require("../models/Pacientes");
-const Medicos = require("../models/Medico");
-const Joi = require("joi"); 
-const db = require("../config/database");
-const bcrypt = require("bcrypt"); 
-const { Op } = require("sequelize");
+const Usuarios = require("../models/Usuarios")
+const Pacientes = require("../models/Pacientes")
+const Medicos = require("../models/Medico")
+const Joi = require("joi")
+const bcrypt = require("bcrypt")
+const { Op } = require("sequelize")
 
 
 const criarUsuarioSchema = Joi.object({
@@ -16,7 +15,7 @@ const criarUsuarioSchema = Joi.object({
       "string.max": "O nome deve ter no máximo 100 caracteres"
     }),
   
-  genero: Joi.string().trim().valid("masculino", "feminino", "outro").required()
+  genero: Joi.string().trim().valid("M", "F", "X").required()
     .messages({
       "string.empty": "O gênero não pode ser vazio",
       "any.required": "O gênero é obrigatório",

@@ -2,7 +2,7 @@ const Joi = require("joi");
 const Triagens = require("../models/Triagens");
 const Consultas = require("../models/Consultas");
 const Medicos = require("../models/Medico");
-const Usuarios = require("../models/Usuarios");
+
 
 const criarTriagemSchema = Joi.object({
   nomeMedico: Joi.string().trim().required()
@@ -103,6 +103,7 @@ module.exports = {
       res.status(500).json({ msg: "Erro ao listar consultas." });
     }
   },
+
 // Médico lista somente as triagens feitas por ele
 async listarTriagensMedico(req, res) {
   try {
@@ -130,6 +131,7 @@ async listarTriagensMedico(req, res) {
     return res.status(500).json({ msg: "Erro ao listar triagens." });
   }
 },
+
   // Médico/adm cria triagem de uma consulta existente
  async criarTriagem(req, res) {
   try {

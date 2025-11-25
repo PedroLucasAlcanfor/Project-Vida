@@ -53,7 +53,6 @@ module.exports = {
         }
     },
 
-  
     async listarProntuarios(req, res) {
         try {
             const usuario = req.usuario;
@@ -69,6 +68,7 @@ module.exports = {
             return res.status(500).json({ msg: "Erro interno no servidor." });
         }
     },
+    
     async procurarProntuario(req, res) {
         try {
             const usuario = req.usuario;
@@ -119,7 +119,6 @@ module.exports = {
         }
     },
 
-   
     async criarProntuario(req, res) {
         try {
             const usuario = req.usuario;
@@ -169,72 +168,70 @@ module.exports = {
         }
     },
 
+    async atualizarProntuario(req, res) {
+        try {
+            const usuario = req.usuario;
+            const idProntuario = req.params.id;
 
-    
-async  atualizarProntuario(req, res) {
-  try {
-    const usuario = req.usuario;
-    const idProntuario = req.params.id;
+            if (usuario.tipo !== "medico" && usuario.tipo !== "admin")
+            return res.status(403).json({ msg: "Acesso negado." });
 
-    if (usuario.tipo !== "medico" && usuario.tipo !== "admin")
-      return res.status(403).json({ msg: "Acesso negado." });
+            const { error, value } = atualizarProntuarioSchema.validate(
+            req.body,
+            { abortEarly: false }
+            );
 
-    const { error, value } = atualizarProntuarioSchema.validate(
-      req.body,
-      { abortEarly: false }
-    );
+            if (error) {
+            return res.status(400).json({ erros: error.details.map(d => d.message) });
+            }
 
-    if (error) {
-      return res.status(400).json({ erros: error.details.map(d => d.message) });
-    }
+            const prontuario = await Prontuarios.findByPk(idProntuario);
 
-    const prontuario = await Prontuarios.findByPk(idProntuario);
+            if (!prontuario)
+            return res.status(404).json({ msg: "Prontuário não encontrado." });
 
-    if (!prontuario)
-      return res.status(404).json({ msg: "Prontuário não encontrado." });
+            const antigo = {
+            alergias: prontuario.alergias || [],
+            doencas_cronicas: prontuario.doencas_cronicas || [],
+            medicamentos_continuos: prontuario.medicamentos_continuos || [],
+            observacoes_gerais: prontuario.observacoes_gerais || ""
+            };
 
-    const antigo = {
-      alergias: prontuario.alergias || [],
-      doencas_cronicas: prontuario.doencas_cronicas || [],
-      medicamentos_continuos: prontuario.medicamentos_continuos || [],
-      observacoes_gerais: prontuario.observacoes_gerais || ""
-    };
+            const novo = {
+            alergias: toArray(value.alergias),
+            doencas_cronicas: toArray(value.doencas_cronicas),
+            medicamentos_continuos: toArray(value.medicamentos_continuos),
+            observacoes_gerais: value.observacoes_gerais || ""
+            };
 
-    const novo = {
-      alergias: toArray(value.alergias),
-      doencas_cronicas: toArray(value.doencas_cronicas),
-      medicamentos_continuos: toArray(value.medicamentos_continuos),
-      observacoes_gerais: value.observacoes_gerais || ""
-    };
+            const nadaMudou = JSON.stringify(antigo) === JSON.stringify(novo);
 
-    const nadaMudou = JSON.stringify(antigo) === JSON.stringify(novo);
+            if (nadaMudou) {
+            return res.status(400).json({ msg: "Nenhuma alteração realizada." });
+            }
 
-    if (nadaMudou) {
-      return res.status(400).json({ msg: "Nenhuma alteração realizada." });
-    }
+            await prontuario.update({
+            ...novo,
+            atualizado_por: usuario.id,
+            valores_antigos: [
+                ...(prontuario.valores_antigos || []),
+                {
+                ...antigo,
+                alterado_por: usuario.nome,
+                data: new Date()
+                }
+            ]
+            });
 
-    await prontuario.update({
-      ...novo,
-      atualizado_por: usuario.id,
-      valores_antigos: [
-        ...(prontuario.valores_antigos || []),
-        {
-          ...antigo,
-          alterado_por: usuario.nome,
-          data: new Date()
+            return res.json({
+            msg: "Prontuário atualizado com sucesso!",
+            prontuario
+            });
+
+        } catch (erro) {
+            console.error("Erro ao atualizar prontuário:", erro);
+            return res.status(500).json({ msg: "Erro interno no servidor." });
         }
-      ]
-    });
-
-    return res.json({
-      msg: "Prontuário atualizado com sucesso!",
-      prontuario
-    });
-
-  } catch (erro) {
-    console.error("Erro ao atualizar prontuário:", erro);
-    return res.status(500).json({ msg: "Erro interno no servidor." });
-  }
-}
+    }
 
 }

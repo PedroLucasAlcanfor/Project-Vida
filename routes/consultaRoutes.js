@@ -11,10 +11,10 @@ router.post("/disponibilizar", auth, consultaControllers.disponibilizarConsulta)
 router.get("/listar", auth, consultaControllers.listarConsultas) //retorna todas as consultas
 router.patch("/marcar/:id_consulta", auth, consultaControllers.marcarConsultaPaciente) //paciente marca consulta disponível
 router.patch("/desmarcar/:id_consulta", auth, consultaControllers.desmarcarConsulta) //desmarcar consulta 
-router.patch("/finalizar/:id_consulta",auth,  consultaControllers.finalizarConsulta)
+router.patch("/finalizar/:id_consulta",auth,  consultaControllers.finalizarConsulta) //finaliza consulta do paciente
 router.post("/emergencia/marcar", auth, consultaControllers.criarEmergencia) //recepcionista ou adm marca consulta
 router.get("/diarias/listar", auth, consultaControllers.listarConsultasDiarias) //Lista todas as consultas diárias (para o dashboard)
-router.get("/relatorios",auth, consultaControllers.relatorioConsultas)
+router.get("/relatorios",auth, consultaControllers.relatorioConsultas) //relatorio de consultas do paciente
 
 
 module.exports = router

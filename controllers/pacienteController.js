@@ -1,4 +1,3 @@
-//ADICIONAR O BCRYPT A CADA TIPO DE CRIAÇÃO DE USUARIO
 
 const Pacientes = require("../models/Pacientes");
 const Usuarios = require("../models/Usuarios");
@@ -97,7 +96,7 @@ const atualizarPacienteSchema = Joi.object({
 
 module.exports = {
 
-  //  paciente cria sua própria conta
+  // paciente cria sua própria conta
   async cadastrarPaciente(req, res) {
     try {
       const { error, value } = criarPacienteSchema.validate(req.body, { abortEarly: false });
@@ -109,7 +108,6 @@ module.exports = {
         await Pacientes.findOne({ where: { email: value.email } }) ||
         await Usuarios.findOne({ where: { email: value.email } })||
         await Medicos.findOne({ where: { email: value.email } })
-
 
       if (existeEmail) return res.status(409).json({ msg: "E-mail já cadastrado." });
 

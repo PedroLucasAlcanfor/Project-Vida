@@ -1,6 +1,5 @@
 const express = require("express")
 const loginControllers = require("../controllers/loginControllers")
-const auth = require("../middlewares/auth")
 const router = express.Router()
 
 router.post("/login", loginControllers.login) //gera o token ao logar

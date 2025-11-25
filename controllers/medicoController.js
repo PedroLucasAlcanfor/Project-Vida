@@ -1,12 +1,10 @@
 const Medicos = require("../models/Medico");
 const Joi = require("joi");
-const db = require("../config/database");
 const Pacientes = require("../models/Pacientes");
 const Usuarios = require("../models/Usuarios");
 const bcrypt = require("bcrypt");
 const { Op } = require("sequelize");
 
-// ---------------- SCHEMAS JOI ----------------
 
 const criarMedicoSchema = Joi.object({
     nome: Joi.string().trim().min(5).max(100).pattern(/^[A-Za-zÀ-ÿ\s]+$/).required(),
@@ -48,7 +46,6 @@ const atualizarMedicoSchema = Joi.object({
     )
 }).min(1);
 
-// ---------------- CONTROLLER ----------------
 
 module.exports = {
 
@@ -72,11 +69,9 @@ module.exports = {
                 return res.status(401).json({ msg: "Apenas administradores podem acessar esta rota." });
             }
 
-            // --- validações de duplicidade --- //
-
             const emailExistente = await Usuarios.findOne({ where: { email: value.email } }) ||
-                                   await Pacientes.findOne({ where: { email: value.email } }) ||
-                                   await Medicos.findOne({ where: { email: value.email } });
+            await Pacientes.findOne({ where: { email: value.email } }) ||
+            await Medicos.findOne({ where: { email: value.email } });
 
             if (emailExistente) return res.status(409).json({ msg: "E-mail já cadastrado." });
 
@@ -121,7 +116,6 @@ module.exports = {
             if (!req.usuario || req.usuario.tipo !== "admin") {
                 return res.status(401).json({ msg: "Apenas administradores podem acessar esta rota." });
             }
-
 
             if (value.nome) {
                 const nomeExistente = await Medicos.findOne({
